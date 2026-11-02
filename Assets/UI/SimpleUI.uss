@@ -1,0 +1,93 @@
+/* 只做布局；按钮、输入框、文字颜色全部使用 UI Toolkit 默认主题。 */
+.screen {
+    flex-grow: 1;
+    padding: 16px;
+}
+
+.screen--center {
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(226, 226, 226);
+}
+
+.form {
+    width: 380px;
+}
+
+.title {
+    font-size: 20px;
+    margin-bottom: 16px;
+}
+
+.actions {
+    flex-direction: row;
+    margin-top: 4px;
+}
+
+.actions > Button {
+    flex-grow: 1;
+    margin-right: 8px;
+}
+
+.actions > Button:last-child {
+    margin-right: 0;
+}
+
+.update-status {
+    margin-top: 12px;
+    white-space: normal;
+}
+
+.update-progress {
+    margin-top: 6px;
+    width: 100%;
+}
+
+.note {
+    margin-top: 12px;
+    white-space: normal;
+}
+
+.dialog-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.dialog {
+    width: 340px;
+    padding: 18px;
+    background-color: rgb(240, 240, 240);
+}
+
+.dialog-message {
+    margin-bottom: 14px;
+    white-space: normal;
+}
+
+.top-bar {
+    flex-direction: row;
+    align-items: center;
+    padding: 8px 10px;
+    background-color: rgb(226, 226, 226);
+}
+
+.top-bar > Label {
+    margin-right: 12px;
+}
+
+.top-bar > Button {
+    margin-right: 6px;
+}
+
+.status {
+    margin-top: 4px;
+    padding: 6px 10px;
+    background-color: rgb(238, 238, 238);
+    white-space: normal;
+}

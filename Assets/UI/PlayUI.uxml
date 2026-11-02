@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns:ui="UnityEngine.UIElements"
+         xmlns:uie="UnityEditor.UIElements"
+         noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd"
+         editor-extension-mode="False">
+    <Style src="SimpleUI.uss" />
+    <ui:VisualElement name="screen" class="screen">
+        <ui:VisualElement class="top-bar">
+            <ui:Label name="account-label" text="用户名：Guest" />
+            <ui:Label name="hp-label" text="HP 100 / 100" />
+            <ui:Button name="damage-button" text="扣血 -7" />
+            <ui:Button name="upload-button" text="上传云端" />
+            <ui:Label name="version-label" text="加载中…" />
+        </ui:VisualElement>
+        <ui:Label name="status-label" text="加载中…" class="status" />
+    </ui:VisualElement>
+</ui:UXML>

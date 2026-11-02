@@ -1,0 +1,36 @@
+{
+    "schemaVersion": 1,
+    "buildNumber": 1,
+    "contentVersion": "1.0.0",
+    "builtAtUtc": "2026-11-02T07:24:41.2500796Z",
+    "bundles": [
+        {
+            "name": "hotupdate_code.bundle",
+            "file": "hotupdate_code.bundle",
+            "sha256": "2734cb3a3491c439303ace3675220de762c586ba7ed57149324b034111ccaa7e",
+            "size": 3900,
+            "dependencies": []
+        },
+        {
+            "name": "hotupdate_assets.bundle",
+            "file": "hotupdate_assets.bundle",
+            "sha256": "bce7b9ec3c158c1b6d175995ef6698f840e20225a05b8742ec3cbcb10666b014",
+            "size": 105515,
+            "dependencies": []
+        }
+    ],
+    "assets": [
+        {
+            "key": "hotupdate_dll",
+            "bundle": "hotupdate_code.bundle",
+            "asset": "HotUpdate.dll",
+            "type": "TextAsset"
+        },
+        {
+            "key": "hero_sprite",
+            "bundle": "hotupdate_assets.bundle",
+            "asset": "Hero",
+            "type": "Sprite"
+        }
+    ]
+}

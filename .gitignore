@@ -1,0 +1,27 @@
+# Libraries / generated Unity data
+Library/
+Temp/
+Obj/
+Logs/
+UserSettings/
+Builds/
+HybridCLRData/
+*.csproj
+*.sln
+.vs/
+.idea/
+.vscode/
+
+# Node
+node_modules/
+
+# Local cloud data (contains demo player saves)
+CloudServer/data/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Keep these on purpose:
+# ServerData/AB/*        -> content published to the demo server
+# Assets/StreamingAssets/AB/* -> initial content bundled with the player

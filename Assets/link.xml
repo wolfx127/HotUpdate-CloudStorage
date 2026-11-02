@@ -1,0 +1,6 @@
+<linker>
+    <!-- 主工程会通过 interface + 反射和热更 DLL 交互，因此保留整个 Baseline。 -->
+    <assembly fullname="HotUpdateDemo.Baseline" preserve="all" />
+    <!-- 场景里挂载的脚本类型也显式保留，避免 IL2CPP 裁剪后场景引用丢失。 -->
+    <assembly fullname="Assembly-CSharp" preserve="all" />
+</linker>

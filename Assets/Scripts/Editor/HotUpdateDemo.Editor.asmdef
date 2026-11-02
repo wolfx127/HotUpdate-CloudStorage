@@ -1,0 +1,20 @@
+{
+    "name": "HotUpdateDemo.Editor",
+    "rootNamespace": "HotUpdateDemo.EditorTools",
+    "references": [
+        "HotUpdateDemo.Baseline",
+        "HybridCLR.Editor",
+        "HybridCLR.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

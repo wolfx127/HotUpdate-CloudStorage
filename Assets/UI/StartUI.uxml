@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns:ui="UnityEngine.UIElements"
+         xmlns:uie="UnityEditor.UIElements"
+         noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd"
+         editor-extension-mode="False">
+    <Style src="SimpleUI.uss" />
+    <ui:VisualElement name="screen" class="screen screen--center">
+        <ui:VisualElement class="form">
+            <ui:Label text="HybridCLR 热更新 Demo" class="title" />
+            <ui:TextField name="account-field" label="账户 ID" />
+            <ui:TextField name="password-field" label="密码" />
+            <ui:VisualElement class="actions">
+                <ui:Button name="register-button" text="注册" />
+                <ui:Button name="login-button" text="登录" />
+            </ui:VisualElement>
+            <ui:Label name="update-status" text="检查更新…" class="update-status" />
+            <ui:ProgressBar name="update-progress" title="下载热更" class="update-progress" style="display: none;" />
+            <ui:Label text="演示：不校验格式；密码仅在本机保存摘要，不上传。" class="note" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+
+    <ui:VisualElement name="dialog-overlay" class="dialog-overlay" style="display: none;">
+        <ui:VisualElement class="dialog">
+            <ui:Label name="dialog-message" text="" class="dialog-message" />
+            <ui:Button name="dialog-ok" text="确定" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
