@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
 
-namespace HotUpdateDemo
+namespace Baseline.Core
 {
     /// <summary>
     /// 本地演示账号库。

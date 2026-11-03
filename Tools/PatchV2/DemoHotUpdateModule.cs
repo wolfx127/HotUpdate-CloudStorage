@@ -4,7 +4,8 @@ using UnityEngine;
 namespace HotUpdateDemo.HotUpdate
 {
     /// <summary>
-    /// V2 热更代码：不重新打包 exe，只替换 AB 里的 HotUpdate.dll。
+    /// V2 热更代码：手动复制到 Assets/Scripts/HotUpdate/DemoHotUpdateModule.cs 覆盖，
+    /// 再重新 CompileDll + 打 AB；不用重打 exe，只替换 AB 里的 HotUpdate.dll。
     ///
     /// 和 V1 的差别：
     /// - DisplayVersion / Notes 改了（证明运行的是新 DLL）；

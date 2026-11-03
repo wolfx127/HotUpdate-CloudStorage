@@ -1,36 +1,36 @@
 {
     "schemaVersion": 1,
-    "buildNumber": 1,
-    "contentVersion": "1.0.0",
-    "builtAtUtc": "2026-11-02T07:24:41.2500796Z",
+    "buildNumber": 5,
+    "contentVersion": "1.0.4",
+    "builtAtUtc": "2026-11-03T03:38:02.4285031Z",
     "bundles": [
         {
-            "name": "hotupdate_code.bundle",
-            "file": "hotupdate_code.bundle",
-            "sha256": "2734cb3a3491c439303ace3675220de762c586ba7ed57149324b034111ccaa7e",
-            "size": 3900,
+            "name": "hero_sprite.bundle",
+            "file": "hero_sprite.bundle",
+            "sha256": "8625fbb4503e65996c228b64b5ba6d02729a91ea81d6883fbfb302c8db9ae46c",
+            "size": 12457,
             "dependencies": []
         },
         {
-            "name": "hotupdate_assets.bundle",
-            "file": "hotupdate_assets.bundle",
-            "sha256": "bce7b9ec3c158c1b6d175995ef6698f840e20225a05b8742ec3cbcb10666b014",
-            "size": 105515,
+            "name": "hotupdate_dll.bundle",
+            "file": "hotupdate_dll.bundle",
+            "sha256": "59d856d1d1be4b765dd80585c4a33fc18f147518ec252465f1503c2b296bd02a",
+            "size": 3863,
             "dependencies": []
         }
     ],
     "assets": [
         {
-            "key": "hotupdate_dll",
-            "bundle": "hotupdate_code.bundle",
-            "asset": "HotUpdate.dll",
-            "type": "TextAsset"
+            "key": "hero_sprite",
+            "bundle": "hero_sprite.bundle",
+            "asset": "AndroidHero",
+            "type": "Texture2D"
         },
         {
-            "key": "hero_sprite",
-            "bundle": "hotupdate_assets.bundle",
-            "asset": "Hero",
-            "type": "Sprite"
+            "key": "hotupdate_dll",
+            "bundle": "hotupdate_dll.bundle",
+            "asset": "HotUpdate.dll",
+            "type": "TextAsset"
         }
     ]
 }

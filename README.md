@@ -1,6 +1,6 @@
 # HybridCLR + 手写 AssetBundle + 云同步（极简 UI）
 
-一个 Unity 6 教学项目：**C# 代码热更 + AssetBundle 资源热更 + 云端保存 HP**。
+一个 Unity 6 教学项目：**C# 代码热更 + AssetBundle 资源热更 + 云端存档（进 Play 自动恢复 HP）**。
 
 - **两个场景**：`Start` 负责更新检查、注册/登录；`Play` 是游戏场景。
 - **极简 UI**：UI Toolkit 默认控件，没有自定义按钮配色、卡片、渐变、动效。
@@ -11,6 +11,12 @@
 - **资源热更**：手写 `AssetBundleManager`，**不使用 Addressables**。
 - **数值直接写在 C# 里**：伤害公式在 `HotUpdate.dll`，不用 ScriptableObject / 配置表。
 - **云服务**：Node.js 零依赖服务，保存 HP JSON，同时托管 AB 文件。
+- **云存档**：进 `Play` 自动从云端恢复一次 HP；「上传云端」把当前 HP 写回。
+
+> ⚠️ **已改成纯手动流程**：原来的一键菜单（Setup / Build Initial / Build Update / Build Player / Apply V2 / Reset V1 / 冒烟测试）全部移除，
+> **工程里没有任何自定义编辑器菜单，也没有内置的 AB 打包入口**（`Assets/Scripts/Editor/` 不存在）。
+> 改代码、换贴图、拷 DLL、打 AB、写 catalog、同步内置内容、打 Player 都由你手动完成；AB 用你自己选的方式打，只要满足下面「打 AB 的约定」。
+> **完整步骤见 [Docs/手动流程.md](Docs/手动流程.md)**；下面的"快速运行 / 手动走一遍"章节保留作设计说明，实际操作以手动流程为准。
 
 ![Start：注册/登录](Docs/StartScene-V1.png)
 
@@ -30,12 +36,11 @@
 | Node.js | 18+ |
 | Player 打包 | Windows Build Support (IL2CPP) |
 
-> HybridCLR 真正运行在 IL2CPP 上。当前机器缺少 Windows IL2CPP 模块，
-> 因此完成的是 **Editor 端到端验证**，详见 [学习路线](Docs/学习路线.md)。
+> HybridCLR 必须跑在 IL2CPP 上。本机已装 Windows Build Support (IL2CPP)，
+> 打包路径是 `HybridCLR → Generate → All` + `File → Build Profiles → Build`。
 
-> 项目已清理掉生成的 `HybridCLRData` 以减小体积。构建 Player 前先执行
-> `Hot Update Demo/1. Setup Project`，重新安装 HybridCLR 本地 il2cpp 数据。
-> `Build Initial Content` / `Build Update Content` 不依赖该目录，可直接运行。
+> `HybridCLRData/`（本地 il2cpp）已在 gitignore 里。换机器后先装 HybridCLR
+> （菜单 `HybridCLR/Installer`），再编译热更 DLL。
 
 ## 快速运行
 
@@ -77,6 +82,7 @@ node CloudServer/server.js
 用户名：xxx   HP 100 / 100   [扣血 -7] [上传云端]   代码 1.0.0 | 内容 1.0.0 | builtin
 ```
 
+- **进 Play 会自动从云端恢复一次存档**：拉到了就把 HP 覆盖成云端值，状态行显示「已从云端恢复：85/100（存档版本 1.0.0）」；云端没档显示「云端暂无存档」；连不上则保持初始 100。
 - `扣血 -7`：走热更 DLL 里的伤害公式，HP 变成 93。
 - `上传云端`：紧挨在右侧，把当前 HP、热更代码版本、时间戳 PUT 到 Node 服务。
 - 也可以选中 `Player`，在 Inspector 的 `PlayerHealth` 下点同样的扣血按钮。
@@ -84,45 +90,29 @@ node CloudServer/server.js
 
 云数据保存在 `CloudServer/data/players.json`。
 
-## 发布 V2：代码和图片一起热更
+## 手动走一遍（改代码 / 换贴图 / 打包 / 热更 / 回退）
 
-保持 Node 服务运行：
+**完整步骤见 [Docs/手动流程.md](Docs/手动流程.md)**，这里是骨架：
 
-1. 菜单 `Hot Update Demo/Apply V2 Demo Patch (code + image)`
-   - 伤害从 `+2` 改成 `+9`；
-   - HP ≤ 35% 时伤害翻倍；
-   - 金色机器人。
-2. 等编译完成。
-3. 菜单 `Hot Update Demo/3. Build Update Content (server only, bump version)`
-   - 只更新 `ServerData/AB`，`StreamingAssets/AB` 保持 V1；
-   - 内容版本变成 `1.0.1`。
-4. 停止 Play，再点 Play：
-   - Start 自动发现 1.0.1，显示下载进度条；
-   - 完成后注册/登录（或使用已有账号）；
-   - Play 顶部变成 `代码 1.2.0 | 内容 1.0.1 | cache`；
-   - 金色机器人；按钮变成「扣血 -14」，HP 100 → 86；
-   - 上传后云端版本为 `1.2.0`。
-
-### 回到 V1
-
-1. `Hot Update Demo/Reset V1 Demo Patch (code + image)`，等编译。
-2. `Hot Update Demo/Clear Downloaded AB Cache`。
-3. `Hot Update Demo/2. Build Initial Content (copy into StreamingAssets)`。
-4. 重新 Play。
-
-## 菜单
-
-| 菜单 | 作用 |
+| 阶段 | 你要做的事 |
 | --- | --- |
-| `Hot Update Demo/1. Setup Project` | 生成 Start/Play 场景、UI 引用、HybridCLR 设置 |
-| `Hot Update Demo/2. Build Initial Content` | 编译 V1 DLL、打两个 AB、复制进 StreamingAssets |
-| `Hot Update Demo/3. Build Update Content` | 只更新 ServerData/AB，版本 +1 |
-| `Hot Update Demo/4. Build Windows IL2CPP Player` | GenerateAll + 重新打 AB + 打 IL2CPP 包 |
-| `Hot Update Demo/Apply V2 Demo Patch` | 切到 V2 代码与金色图 |
-| `Hot Update Demo/Reset V1 Demo Patch` | 切回 V1 |
-| `Hot Update Demo/Clear Downloaded AB Cache` | 清除 persistentDataPath 下载缓存 |
-| `Hot Update Demo/Check Environment` | 检查 HybridCLR、IL2CPP 模块、场景、AB |
-| `Hot Update Demo/Run Play Mode Smoke Test` | 自动注册/重复注册/错误密码/登录/扣血/上传 |
+| **打第一版** | 编译 DLL → 拷成 `Assets/HotUpdate/Build/HotUpdate.dll.bytes` → 给 `Hero.png` 和 `.bytes` 打 AB 标签 → 用你自己的方式打 AB（工程不内置） → 手写 `ServerData/AB/catalog.json` → 同步到 `Assets/StreamingAssets/AB` → `HybridCLR/Generate/All` → `File/Build Profiles` 打包 |
+| **发热更（V2）** | 手改 `DemoHotUpdateModule.cs`（版本号 + 伤害公式）+ 覆盖 `Hero.png` → 重编 DLL → 重打 AB → 手改 catalog（`buildNumber` +1）→ **只**覆盖 `ServerData/AB` → 重启 exe |
+| **回退（V1）** | 代码/贴图改回去 → 重编重打 → catalog 用**更大**的 buildNumber（如 3，内容版本 1.0.2）→ 重启 exe |
+
+> 铁律：`buildNumber` 只能递增。想回退就"用更高版本号发旧内容"，不能把数字改小，否则已升级的客户端不会降级。
+
+## 打 AB 的约定（工程不提供打包入口）
+
+`Assets/Scripts/Editor/` 已删除，工程里没有任何 `[MenuItem]`。AB 由你自己选的方式打（AssetBundle Browser、自写的编辑器脚本、命令行 batchmode 都行），只要满足下面三条：
+
+| 约定 | 内容 |
+| --- | --- |
+| 输出位置 | 先落到 `ServerData/AB/`（服务器侧）；需要更新内置基线时再复制到 `Assets/StreamingAssets/AB/` |
+| 文件名 | `hotupdate_code.bundle`（装 `HotUpdate.dll.bytes`）、`hotupdate_assets.bundle`（装 `Hero`） |
+| catalog | `catalog.json` 里的 `name` / `file` / `sha256` / `size` 必须和实际文件一致；资源 key 固定为 `hotupdate_dll`、`hero_sprite` |
+
+HybridCLR 官方菜单照常可用：`HybridCLR/CompileDll/Win64`（或 `ActiveBuildTarget`）、`HybridCLR/Generate/All`。这些是包自带的，不属于本工程。
 
 ## 代码入口
 
@@ -132,14 +122,14 @@ node CloudServer/server.js
 | 本地账号库 | [`AccountStore.cs`](Assets/Scripts/Baseline/Core/AccountStore.cs) |
 | 用户名 → 云端 playerId | [`PlayerSession.cs`](Assets/Scripts/Baseline/Core/PlayerSession.cs) |
 | Play 顶部 UI | [`GameHud.cs`](Assets/Scripts/Baseline/UI/GameHud.cs) |
-| 启动与热更加载 | [`GameRoot.cs`](Assets/Scripts/Baseline/Core/GameRoot.cs) |
+| 启动、热更加载、云存档恢复 | [`GameRoot.cs`](Assets/Scripts/Baseline/Core/GameRoot.cs) |
 | 手写 AB 管理器（含进度） | [`AssetBundleManager.cs`](Assets/Scripts/Baseline/Core/AssetBundleManager.cs) |
 | 动态加载 DLL | [`HotUpdateContracts.cs`](Assets/Scripts/Baseline/Core/HotUpdateContracts.cs) |
 | HP 与热更公式 | [`PlayerHealth.cs`](Assets/Scripts/Baseline/Core/PlayerHealth.cs) |
 | 云同步 | [`CloudSyncService.cs`](Assets/Scripts/Baseline/Core/CloudSyncService.cs) |
 | 热更数值 V1 | [`DemoHotUpdateModule.cs`](Assets/Scripts/HotUpdate/DemoHotUpdateModule.cs) |
 | 热更数值 V2 | [`Tools/PatchV2`](Tools/PatchV2/DemoHotUpdateModule.cs) |
-| 构建流水线 | [`HotUpdateBuildPipeline.cs`](Assets/Scripts/Editor/HotUpdateBuildPipeline.cs) |
+| 手动流程说明 | [`Docs/手动流程.md`](Docs/手动流程.md) |
 | 云服务 | [`server.js`](CloudServer/server.js) |
 
 UI 资源：

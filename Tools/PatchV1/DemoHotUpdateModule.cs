@@ -4,7 +4,7 @@ using UnityEngine;
 namespace HotUpdateDemo.HotUpdate
 {
     /// <summary>
-    /// V1 备份：菜单 Reset V1 Demo Patch 会把它还原到 Assets/Scripts/HotUpdate。
+    /// V1 备份：手动复制到 Assets/Scripts/HotUpdate/DemoHotUpdateModule.cs 覆盖即可回退。
     /// </summary>
     public sealed class DemoHotUpdateModule : IHotUpdateModule
     {

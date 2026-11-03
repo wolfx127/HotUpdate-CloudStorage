@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace HotUpdateDemo
+namespace Baseline.Core
 {
     /// <summary>
     /// 玩家生命值。它属于 AOT 主工程，因此不能、也不需要在热更里重新定义。

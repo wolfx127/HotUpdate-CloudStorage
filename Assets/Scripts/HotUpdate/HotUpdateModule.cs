@@ -1,18 +1,16 @@
+using Baseline.Core;
 using HotUpdateDemo;
 using UnityEngine;
 
 namespace HotUpdateDemo.HotUpdate
 {
-    /// <summary>
-    /// V1 备份：菜单 Reset V1 Demo Patch 会把它还原到 Assets/Scripts/HotUpdate。
-    /// </summary>
     public sealed class DemoHotUpdateModule : IHotUpdateModule
     {
-        public string DisplayVersion => "1.0.0";
+        public string DisplayVersion => "1.2.0";
 
-        public string Notes => "V1 · code loaded from AB / HotUpdate.dll";
+        public string Notes => "V1 · 热更代码，改这里即可";
 
-        public int DamageBonus => 2;
+        public int DamageBonus => 9;
 
         public string HeroAssetKey => "hero_sprite";
 

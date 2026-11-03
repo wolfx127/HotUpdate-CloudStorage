@@ -1,7 +1,0 @@
-{
-  "cloudBaseUrl": "http://127.0.0.1:8080",
-  "contentBaseUrl": "http://127.0.0.1:8080/ServerData/AB",
-  "apiToken": "dev-token",
-  "playerIdOverride": "",
-  "requestTimeoutSeconds": 15
-}

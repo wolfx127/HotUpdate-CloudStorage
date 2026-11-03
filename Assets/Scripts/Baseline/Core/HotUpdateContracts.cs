@@ -3,7 +3,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
-namespace HotUpdateDemo
+namespace Baseline.Core
 {
     /// <summary>
     /// AOT 主工程和热更程序集之间的唯一契约。

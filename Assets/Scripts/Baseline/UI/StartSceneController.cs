@@ -1,9 +1,10 @@
 using System.Collections;
+using Baseline.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
-namespace HotUpdateDemo
+namespace Baseline.UI
 {
     /// <summary>
     /// Start 场景：

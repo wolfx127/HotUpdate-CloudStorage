@@ -4,7 +4,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace HotUpdateDemo
+namespace Baseline.Core
 {
     /// <summary>
     /// 运行时可编辑的配置。放在 StreamingAssets/appconfig.json，

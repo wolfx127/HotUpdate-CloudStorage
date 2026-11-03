@@ -1,11 +1,13 @@
 using System.Collections;
+using Baseline.UI;
 using UnityEngine;
 
-namespace HotUpdateDemo
+namespace Baseline.Core
 {
     /// <summary>
     /// Play 场景启动编排：
-    /// appconfig -> 手写 AB 管理器 -> 动态加载 HotUpdate.dll -> 加载热更贴图。
+    /// appconfig -> 手写 AB 管理器 -> 动态加载 HotUpdate.dll -> 加载热更贴图
+    /// ->（启动完成后）自动从云端恢复一次存档。
     /// </summary>
     public sealed class GameRoot : MonoBehaviour
     {
@@ -34,6 +36,11 @@ namespace HotUpdateDemo
 
         private IEnumerator Start()
         {
+            if (cloud != null)
+            {
+                StartCoroutine(AutoLoadCloudSave());
+            }
+
             hud?.SetStatus("读取 appconfig.json…");
 
             AppConfig loaded = null;
@@ -121,6 +128,70 @@ namespace HotUpdateDemo
             else if (!string.IsNullOrEmpty(configWarning))
             {
                 hud?.SetStatus(configWarning);
+            }
+        }
+
+        /// <summary>
+        /// 进入 Play 后自动从云端拉一次存档——这是"云存档"的读取端，上传仍由 HUD 的按钮触发。
+        /// 拉不到（404 / 超时 / 鉴权失败）不阻塞开局，保持场景里的初始 HP。
+        /// </summary>
+        private IEnumerator AutoLoadCloudSave()
+        {
+            // 等启动流程走完：appconfig -> cloud.Configure -> AB -> DLL -> 贴图。
+            while (!_booted)
+            {
+                yield return null;
+            }
+
+            // 再让一帧，先让启动摘要显示出来，避免一开局就被下面的状态覆盖。
+            yield return null;
+
+            if (cloud == null || player == null || !cloud.IsConfigured)
+            {
+                yield break;
+            }
+
+            CloudResult result = null;
+            yield return cloud.Download(r => result = r);
+
+            if (result == null)
+            {
+                yield break;
+            }
+
+            if (!result.success)
+            {
+                if (result.httpStatus == 404)
+                {
+                    SetCloudStatus($"云端暂无存档，保持初始 HP {player.CurrentHp}/{player.MaxHp}。");
+                    Debug.Log("[Cloud] 云端没有这个玩家的存档，跳过自动恢复。");
+                }
+                else
+                {
+                    SetCloudStatus("云端存档读取失败：" + result.message + "（保持初始 HP）");
+                    Debug.LogWarning("[Cloud] 自动读取存档失败: " + result.message);
+                }
+
+                yield break;
+            }
+
+            if (result.data == null)
+            {
+                yield break;
+            }
+
+            player.ApplyServerHp(result.data.hp);
+            SetCloudStatus($"已从云端恢复：{player.CurrentHp}/{player.MaxHp}（存档版本 {result.data.hotUpdateVersion}）");
+            Debug.Log($"[Cloud] 自动恢复存档: hp={result.data.hp}, maxHp={result.data.maxHp}, " +
+                      $"code={result.data.hotUpdateVersion}");
+        }
+
+        private void SetCloudStatus(string message)
+        {
+            // 启动有致命错误（比如内置 catalog 缺失）时，状态行留给错误信息，云端结果只进日志。
+            if (string.IsNullOrEmpty(_bundles.FatalError))
+            {
+                hud?.SetStatus(message);
             }
         }
 

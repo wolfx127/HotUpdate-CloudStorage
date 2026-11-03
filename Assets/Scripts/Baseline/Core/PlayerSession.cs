@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
 
-namespace HotUpdateDemo
+namespace Baseline.Core
 {
     /// <summary>
     /// Start 场景输入的账号会变成云端存档的 playerId。

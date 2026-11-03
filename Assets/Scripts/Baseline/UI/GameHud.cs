@@ -1,8 +1,9 @@
 using System.Collections;
+using Baseline.Core;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace HotUpdateDemo
+namespace Baseline.UI
 {
     /// <summary>
     /// Play 场景顶部的一行 UI：

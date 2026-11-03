@@ -7,7 +7,7 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace HotUpdateDemo
+namespace Baseline.Core
 {
     [Serializable]
     public sealed class ContentCatalog
@@ -88,8 +88,9 @@ namespace HotUpdateDemo
             ContentCatalog local = ReadCatalog(Path.Combine(LocalRoot, CatalogFileName));
             if (local == null)
             {
-                FatalError = $"找不到或无法解析 {Path.Combine(LocalRoot, CatalogFileName)}。请先执行菜单 " +
-                             "Hot Update Demo/2. Build Initial Content。";
+                FatalError = $"找不到或无法解析 {Path.Combine(LocalRoot, CatalogFileName)}。" +
+                             "请先把 ServerData/AB 下的 catalog.json 和两个 .bundle 复制到 " +
+                             "Assets/StreamingAssets/AB，或从版本库恢复这几个文件。";
                 Debug.LogError("[AB] " + FatalError);
                 yield break;
             }

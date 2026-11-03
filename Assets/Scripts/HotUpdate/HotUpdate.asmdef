@@ -1,15 +1,15 @@
 {
     "name": "HotUpdate",
-    "rootNamespace": "HotUpdateDemo.HotUpdate",
+    "rootNamespace": "",
     "references": [
-        "HotUpdateDemo.Baseline"
+        "GUID:5223d2792a8dc004098dd951e3645d4e"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
-    "autoReferenced": false,
+    "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false
