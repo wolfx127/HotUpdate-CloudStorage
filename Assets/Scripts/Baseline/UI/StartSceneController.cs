@@ -8,36 +8,41 @@ namespace Baseline.UI
 {
     /// <summary>
     /// Start 场景：
-    /// - 先检查云端 AB；有热更时显示 ProgressBar 并下载；
-    /// - 账户 ID / 密码下方是「注册」「登录」两个默认按钮；
-    /// - 登录失败、注册重名用简单弹窗提示；
-    /// - 密码不做格式校验，也不上传。
+    /// - 并行做两件事：检查/下载热更内容、探测账号服务器；
+    /// - 注册/登录都走服务端 /api/v1/accounts/*，客户端不再用 PlayerPrefs；
+    /// - 服务器不可达时可以「离线开局」，游戏照常运行，只是不云同步。
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class StartSceneController : MonoBehaviour
     {
         [SerializeField] private string playSceneName = "Play";
+        [SerializeField] private int serverProbeTimeoutSeconds = 3;
 
         private UIDocument _document;
         private TextField _accountField;
         private TextField _passwordField;
         private Button _registerButton;
         private Button _loginButton;
+        private Button _offlineButton;
         private Button _dialogOkButton;
         private Label _updateStatus;
+        private Label _serverStatus;
         private Label _dialogMessage;
         private ProgressBar _updateProgress;
         private VisualElement _dialogOverlay;
 
-        private bool _readyForAuth;
+        private AppConfig _config;
+        private bool _ready;
+        private bool _busy;
+        private bool _serverReachable;
 
-        public bool IsReadyForAuth => _readyForAuth;
+        public bool IsReady => _ready;
 
         private IEnumerator Start()
         {
             yield return null; // 等 UIDocument 建好 VisualElement 树
             Bind();
-            yield return CheckForUpdates();
+            yield return BootFlow();
         }
 
         private void Bind()
@@ -54,8 +59,10 @@ namespace Baseline.UI
             _passwordField = root.Q<TextField>("password-field");
             _registerButton = root.Q<Button>("register-button");
             _loginButton = root.Q<Button>("login-button");
+            _offlineButton = root.Q<Button>("offline-button");
             _dialogOkButton = root.Q<Button>("dialog-ok");
             _updateStatus = root.Q<Label>("update-status");
+            _serverStatus = root.Q<Label>("server-status");
             _dialogMessage = root.Q<Label>("dialog-message");
             _updateProgress = root.Q<ProgressBar>("update-progress");
             _dialogOverlay = root.Q<VisualElement>("dialog-overlay");
@@ -75,30 +82,62 @@ namespace Baseline.UI
 
             if (_registerButton != null) _registerButton.clicked += Register;
             if (_loginButton != null) _loginButton.clicked += Login;
+            if (_offlineButton != null) _offlineButton.clicked += PlayOffline;
             if (_dialogOkButton != null) _dialogOkButton.clicked += DismissDialog;
 
             HideDialog();
             SetAuthEnabled(false);
+            if (_offlineButton != null) _offlineButton.SetEnabled(false);
             SetUpdateStatus("检查更新…");
+            SetServerStatus("探测服务器…");
         }
 
         /// <summary>
-        /// Start 场景内先检查并下载热更，这样 Play 场景可以直接用缓存内容。
-        /// 只有确实发现新版本并开始下载时才显示进度条。
+        /// 内容检查和服务器探测并行跑，两边都结束后再打开按钮。
+        /// 服务器挂了最多等一个 3 秒探针，不会卡在启动页。
         /// </summary>
-        private IEnumerator CheckForUpdates()
+        private IEnumerator BootFlow()
         {
             AppConfig config = null;
             string configWarning = null;
             yield return AppConfig.Load(c => config = c, w => configWarning = w);
-            config = config ?? new AppConfig();
-            config.Normalize();
 
+            _config = config ?? new AppConfig();
+            _config.Normalize();
+
+            if (!string.IsNullOrEmpty(configWarning))
+            {
+                Debug.LogWarning("[Start] " + configWarning);
+            }
+
+            int pending = 2;
+            StartCoroutine(CheckContent(() => pending--));
+            StartCoroutine(ProbeServer(() => pending--));
+
+            // 兜底：任何一个子协程异常退出，也不能把启动页卡死。
+            float deadline = Time.realtimeSinceStartup + 20f;
+            yield return new WaitUntil(() => pending <= 0 || Time.realtimeSinceStartup >= deadline);
+            if (pending > 0)
+            {
+                Debug.LogWarning("[Start] 启动检查超时，直接启用按钮（可能仍在后台下载）。");
+            }
+
+            _ready = true;
+            SetAuthEnabled(true);
+            if (_offlineButton != null) _offlineButton.SetEnabled(true);
+
+            SetServerStatus(_serverReachable
+                ? $"服务器可用：{_config.cloudBaseUrl}"
+                : "服务器不可达：可以点「离线开局」，游戏照常运行。");
+        }
+
+        private IEnumerator CheckContent(System.Action onDone)
+        {
             AssetBundleManager updater = new AssetBundleManager();
             bool progressVisible = false;
 
             yield return updater.Initialize(
-                config,
+                _config,
                 message => SetUpdateStatus(message),
                 progress =>
                 {
@@ -141,64 +180,103 @@ namespace Baseline.UI
                     _updateProgress.style.display = DisplayStyle.None;
                 }
 
-                if (!string.IsNullOrEmpty(updater.LastWarning))
-                {
-                    SetUpdateStatus("未检测到可用更新，使用本地内容。");
-                }
-                else
-                {
-                    SetUpdateStatus($"已是最新内容 {updater.ContentVersion}");
-                }
+                SetUpdateStatus(!string.IsNullOrEmpty(updater.LastWarning)
+                    ? "未检测到可用更新，使用本地内容。"
+                    : $"已是最新内容 {updater.ContentVersion}");
             }
 
-            if (!string.IsNullOrEmpty(configWarning))
-            {
-                Debug.LogWarning("[Start] " + configWarning);
-            }
-
-            _readyForAuth = true;
-            SetAuthEnabled(true);
+            onDone?.Invoke();
         }
 
-        /// <summary>注册按钮。</summary>
+        private IEnumerator ProbeServer(System.Action onDone)
+        {
+            bool reachable = false;
+            string detail = null;
+
+            yield return AccountApi.ProbeHealth(
+                _config.cloudBaseUrl,
+                serverProbeTimeoutSeconds,
+                (ok, message) => { reachable = ok; detail = message; });
+
+            _serverReachable = reachable;
+            if (!reachable)
+            {
+                Debug.LogWarning("[Start] 服务器探测失败: " + detail);
+            }
+
+            onDone?.Invoke();
+        }
+
         public void Register()
         {
-            if (!_readyForAuth)
+            if (!CanInteract())
             {
                 return;
             }
 
-            string username = _accountField != null ? _accountField.value : string.Empty;
-            string password = _passwordField != null ? _passwordField.value : string.Empty;
-
-            if (!AccountStore.Register(username, password))
-            {
-                // 已存在：取消注册，不覆盖原密码。
-                ShowDialog("用户存在");
-                return;
-            }
-
-            ShowDialog("注册成功，请登录");
+            StartCoroutine(AuthRoutine(true));
         }
 
-        /// <summary>登录按钮。用户名不存在或密码错误都提示同一句话。</summary>
         public void Login()
         {
-            if (!_readyForAuth)
+            if (!CanInteract())
             {
                 return;
             }
 
-            string username = _accountField != null ? _accountField.value : string.Empty;
+            StartCoroutine(AuthRoutine(false));
+        }
+
+        private bool CanInteract()
+        {
+            return _ready && !_busy && _config != null;
+        }
+
+        private IEnumerator AuthRoutine(bool register)
+        {
+            string account = _accountField != null ? _accountField.value : string.Empty;
             string password = _passwordField != null ? _passwordField.value : string.Empty;
 
-            if (!AccountStore.Validate(username, password))
+            _busy = true;
+            SetAuthEnabled(false);
+            if (_offlineButton != null) _offlineButton.SetEnabled(false);
+            SetUpdateStatus(register ? "注册中…" : "登录中…");
+
+            AccountResult result = null;
+            yield return register
+                ? AccountApi.Register(_config.cloudBaseUrl, account, password, _config.requestTimeoutSeconds, r => result = r)
+                : AccountApi.Login(_config.cloudBaseUrl, account, password, _config.requestTimeoutSeconds, r => result = r);
+
+            _busy = false;
+            SetAuthEnabled(true);
+            if (_offlineButton != null) _offlineButton.SetEnabled(true);
+
+            if (result == null || !result.success)
             {
-                ShowDialog("账户或密码错误");
+                SetUpdateStatus("注册/登录失败。");
+                ShowDialog(result != null ? result.message : "网络错误");
+                yield break;
+            }
+
+            if (register)
+            {
+                SetUpdateStatus($"账号 {result.account} 已创建。");
+                ShowDialog("注册成功，请登录");
+                yield break;
+            }
+
+            PlayerSession.EnterOnline(result.account, result.playerId);
+            SceneManager.LoadScene(playSceneName);
+        }
+
+        public void PlayOffline()
+        {
+            if (_busy || !_ready)
+            {
                 return;
             }
 
-            PlayerSession.SetAccount(username);
+            PlayerSession.EnterOffline();
             SceneManager.LoadScene(playSceneName);
         }
 
@@ -242,10 +320,19 @@ namespace Baseline.UI
             }
         }
 
+        private void SetServerStatus(string message)
+        {
+            if (_serverStatus != null)
+            {
+                _serverStatus.text = message;
+            }
+        }
+
         private void OnDestroy()
         {
             if (_registerButton != null) _registerButton.clicked -= Register;
             if (_loginButton != null) _loginButton.clicked -= Login;
+            if (_offlineButton != null) _offlineButton.clicked -= PlayOffline;
             if (_dialogOkButton != null) _dialogOkButton.clicked -= DismissDialog;
         }
     }

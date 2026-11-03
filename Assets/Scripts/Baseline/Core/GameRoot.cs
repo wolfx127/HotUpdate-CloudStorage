@@ -6,8 +6,8 @@ namespace Baseline.Core
 {
     /// <summary>
     /// Play 场景启动编排：
-    /// appconfig -> 手写 AB 管理器 -> 动态加载 HotUpdate.dll -> 加载热更贴图
-    /// ->（启动完成后）自动从云端恢复一次存档。
+    /// appconfig -> 手写 AB 管理器 -> 读取 ContentManifest -> 动态加载 HotUpdate.dll
+    /// -> 应用热更贴图 ->（启动完成后）自动从云端恢复一次存档。
     /// </summary>
     public sealed class GameRoot : MonoBehaviour
     {
@@ -71,54 +71,57 @@ namespace Baseline.Core
                 yield break;
             }
 
-            hud?.SetStatus("加载 HotUpdate.dll…");
-            TextAsset dllAsset = null;
-            string dllError = null;
-            yield return _bundles.LoadAsset<TextAsset>("hotupdate_dll", a => dllAsset = a, e => dllError = e);
+            hud?.SetStatus("加载热更内容清单…");
+            ContentManifest content = null;
+            string manifestError = null;
+            yield return _bundles.LoadBootContent(m => content = m, e => manifestError = e);
 
-            if (dllAsset == null)
+            if (content == null)
             {
                 _booted = true;
                 HotUpdateRuntime.Reset();
-                hud?.MarkReady("热更 DLL 加载失败，使用 AOT 默认逻辑。");
-                hud?.SetStatus(dllError ?? "HotUpdate.dll load failed.");
-                Debug.LogError("[Boot] HotUpdate.dll load failed: " + dllError);
+                HotUpdateSpriteError = manifestError;
+                hud?.MarkReady("热更内容加载失败，使用 AOT 兜底逻辑。");
+                hud?.SetStatus(manifestError ?? "ContentManifest load failed.");
+                Debug.LogError("[Boot] ContentManifest load failed: " + manifestError);
                 yield break;
             }
 
-            bool codeLoaded = HotUpdateRuntime.TryInitialize(dllAsset.bytes, out string codeError);
-            if (!codeLoaded)
+            bool codeLoaded = false;
+            if (content.hotUpdateDll == null)
             {
-                Debug.LogError("[Boot] " + codeError);
+                Debug.LogError("[Boot] ContentManifest.hotUpdateDll 为空。");
+            }
+            else
+            {
+                codeLoaded = HotUpdateRuntime.TryInitialize(content.hotUpdateDll.bytes, out string codeError);
+                if (!codeLoaded)
+                {
+                    Debug.LogError("[Boot] " + codeError);
+                }
             }
 
-            string heroKey = HotUpdateRuntime.Current?.HeroAssetKey;
-            if (string.IsNullOrEmpty(heroKey) || _bundles.FindAsset(heroKey) == null)
-            {
-                heroKey = "hero_sprite";
-            }
-
-            hud?.SetStatus("加载热更 2D 贴图…");
-            Sprite hero = null;
-            string spriteError = null;
-            yield return _bundles.LoadAsset<Sprite>(heroKey, a => hero = a, e => spriteError = e);
-
+            hud?.SetStatus("应用热更 2D 贴图…");
+            Sprite hero = content.heroSprite;
             if (hero != null && heroRenderer != null)
             {
                 heroRenderer.sprite = hero;
                 HotUpdateSpriteApplied = true;
                 Debug.Log($"[Boot] 已应用热更贴图: {hero.name}");
             }
-            else if (!string.IsNullOrEmpty(spriteError))
+            else
             {
-                HotUpdateSpriteError = spriteError;
-                Debug.LogWarning("[Boot] 热更贴图加载失败，保留内置兜底图: " + spriteError);
+                HotUpdateSpriteError = hero == null
+                    ? "ContentManifest.heroSprite 为空"
+                    : "heroRenderer 未绑定";
+                Debug.LogWarning("[Boot] 未应用热更贴图: " + HotUpdateSpriteError);
             }
 
             _booted = true;
+            string modeSuffix = PlayerSession.IsOnline ? string.Empty : " · 离线模式";
             string summary = codeLoaded
-                ? $"启动完成：代码 {HotUpdateRuntime.Current.DisplayVersion}，内容 {_bundles.ContentVersion}（{_bundles.Source}）"
-                : $"启动完成（AOT 兜底），内容 {_bundles.ContentVersion}（{_bundles.Source}）";
+                ? $"启动完成：代码 {HotUpdateRuntime.Current.DisplayVersion}，内容 {_bundles.ContentVersion}（{_bundles.Source}）{modeSuffix}"
+                : $"启动完成（AOT 兜底），内容 {_bundles.ContentVersion}（{_bundles.Source}）{modeSuffix}";
             hud?.MarkReady(summary);
 
             if (!string.IsNullOrEmpty(_bundles.LastWarning))
@@ -145,6 +148,13 @@ namespace Baseline.Core
 
             // 再让一帧，先让启动摘要显示出来，避免一开局就被下面的状态覆盖。
             yield return null;
+
+            if (!PlayerSession.IsOnline)
+            {
+                SetCloudStatus("离线模式：不读取云存档，也不会上传。");
+                Debug.Log("[Cloud] 离线会话，跳过自动恢复。");
+                yield break;
+            }
 
             if (cloud == null || player == null || !cloud.IsConfigured)
             {

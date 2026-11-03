@@ -1,4 +1,4 @@
-using HotUpdateDemo;
+using Baseline.Core;
 using UnityEngine;
 
 namespace HotUpdateDemo.HotUpdate
@@ -13,8 +13,6 @@ namespace HotUpdateDemo.HotUpdate
         public string Notes => "V1 · code loaded from AB / HotUpdate.dll";
 
         public int DamageBonus => 2;
-
-        public string HeroAssetKey => "hero_sprite";
 
         public int CalculateDamage(int baseDamage, int currentHp, int maxHp)
         {

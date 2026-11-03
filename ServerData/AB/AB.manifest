@@ -1,12 +1,9 @@
 ManifestFileVersion: 0
 UnityVersion: 6000.2.14f1
-CRC: 1473942261
+CRC: 2572748238
 HashAppended: 0
 AssetBundleManifest:
   AssetBundleInfos:
     Info_0:
-      Name: hero_sprite.bundle
-      Dependencies: {}
-    Info_1:
-      Name: hotupdate_dll.bundle
+      Name: content_boot.bundle
       Dependencies: {}

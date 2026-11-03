@@ -20,9 +20,6 @@ namespace Baseline.Core
         /// <summary>额外的伤害加成。V2 热更会直接改这个值。</summary>
         int DamageBonus { get; }
 
-        /// <summary>热更资源在 AB 清单里的 key，一般保持 hero_sprite 不变。</summary>
-        string HeroAssetKey { get; }
-
         /// <summary>
         /// 真正的扣血公式。把公式放在热更程序集里，替换 DLL 就能替换逻辑。
         /// </summary>

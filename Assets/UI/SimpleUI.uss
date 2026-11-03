@@ -43,6 +43,15 @@
     width: 100%;
 }
 
+.server-status {
+    margin-top: 6px;
+    white-space: normal;
+}
+
+.offline-button {
+    margin-top: 10px;
+}
+
 .note {
     margin-top: 12px;
     white-space: normal;

@@ -6,13 +6,11 @@ namespace HotUpdateDemo.HotUpdate
 {
     public sealed class DemoHotUpdateModule : IHotUpdateModule
     {
-        public string DisplayVersion => "1.2.0";
+        public string DisplayVersion => "1.4.0";
 
         public string Notes => "V1 · 热更代码，改这里即可";
 
-        public int DamageBonus => 9;
-
-        public string HeroAssetKey => "hero_sprite";
+        public int DamageBonus => 3;
 
         public int CalculateDamage(int baseDamage, int currentHp, int maxHp)
         {

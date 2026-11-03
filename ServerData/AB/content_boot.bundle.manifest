@@ -1,0 +1,31 @@
+ManifestFileVersion: 0
+UnityVersion: 6000.2.14f1
+CRC: 1732416958
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 4b7c41a8ceff31e1328180e3a72196ec
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 8c9282977458b27229f7efad2fc6e52b
+  IncrementalBuildHash:
+    serializedVersion: 2
+    Hash: 7b1876f88047442b27782b2a0a3c4c69
+HashAppended: 0
+ClassTypes:
+- Class: 28
+  Script: {instanceID: 0}
+- Class: 49
+  Script: {instanceID: 0}
+- Class: 114
+  Script: {fileID: 11500000, guid: 6b13433aac7926f4c9ad94d205e997f2, type: 3}
+- Class: 115
+  Script: {instanceID: 0}
+- Class: 213
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/HotUpdate/Build/HotUpdate.dll.bytes
+- Assets/HotUpdate/ContentManifest.asset
+- Assets/Art/ChineseHero.png
+Dependencies: []

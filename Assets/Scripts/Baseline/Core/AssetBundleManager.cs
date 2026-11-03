@@ -12,12 +12,11 @@ namespace Baseline.Core
     [Serializable]
     public sealed class ContentCatalog
     {
-        public int schemaVersion = 1;
+        public int schemaVersion = 2;
         public int buildNumber = 1;
         public string contentVersion = "1.0.0";
         public string builtAtUtc = "";
         public BundleEntry[] bundles = Array.Empty<BundleEntry>();
-        public AssetEntry[] assets = Array.Empty<AssetEntry>();
     }
 
     [Serializable]
@@ -30,26 +29,16 @@ namespace Baseline.Core
         public string[] dependencies = Array.Empty<string>();
     }
 
-    [Serializable]
-    public sealed class AssetEntry
-    {
-        public string key = "";
-        public string bundle = "";
-        public string asset = "";
-        public string type = "";
-    }
-
     /// <summary>
     /// 手写的 AB 资源管理器，不依赖 Addressables。
     ///
-    /// 它做四件事：
+    /// 它只做三件事：
     /// 1. 读 StreamingAssets/AB/catalog.json（随包内置的初始版本）。
     /// 2. 拉取云端 catalog.json，按 buildNumber / SHA256 判断更新。
     /// 3. 把增量 bundle 下载到 persistentDataPath/AB/latest，失败则回退内置或上次缓存。
-    /// 4. 按 catalog 里的依赖关系加载 AssetBundle，再按 key 取资源。
     ///
-    /// 这是刻意写得「够小、能读懂」的版本；生产环境还应加入 CDN、断点续传、
-    /// 签名校验、灰度发布、并发下载、磁盘清理和崩溃回滚。
+    /// 资源身份不在这里：catalog 只描述“有哪些包”，
+    /// 具体是哪个 Hero、哪个 DLL，由 boot bundle 里的 ContentManifest 直接引用决定。
     /// </summary>
     public sealed class AssetBundleManager
     {
@@ -155,82 +144,30 @@ namespace Baseline.Core
             }
         }
 
-        public AssetEntry FindAsset(string key)
-        {
-            if (_catalog?.assets == null)
-            {
-                return null;
-            }
-
-            foreach (AssetEntry entry in _catalog.assets)
-            {
-                if (string.Equals(entry.key, key, StringComparison.Ordinal))
-                {
-                    return entry;
-                }
-            }
-
-            return null;
-        }
-
         /// <summary>
-        /// 按逻辑 key 异步加载资源。协程返回后通过 callback 取值；
-        /// UI、DLL、Sprite 都走这一条路径，便于统一管理引用计数。
+        /// 加载 boot bundle 里的 ContentManifest。
+        /// 资源身份由 SO 的直接引用决定，不再有字符串 key，也不再有按类型扫描的兜底。
         /// </summary>
-        public IEnumerator LoadAsset<T>(string key, Action<T> onLoaded, Action<string> onError)
-            where T : UnityEngine.Object
+        public IEnumerator LoadBootContent(Action<ContentManifest> onLoaded, Action<string> onError)
         {
-            AssetEntry entry = FindAsset(key);
-            if (entry == null)
-            {
-                onError?.Invoke($"catalog 中不存在资源 key: {key}");
-                yield break;
-            }
-
             string bundleError = null;
-            yield return EnsureBundleLoaded(entry.bundle, e => bundleError = e);
+            yield return EnsureBundleLoaded(ContentManifest.BundleName, e => bundleError = e);
             if (!string.IsNullOrEmpty(bundleError))
             {
                 onError?.Invoke(bundleError);
                 yield break;
             }
 
-            AssetBundle bundle = _loadedBundles[entry.bundle];
-            // 这里的 bundle 很小（几 KB 到几百 KB），同步加载更稳定，也便于在
-            // Editor / IL2CPP 下排查路径问题。生产环境可以换成 LoadAssetAsync。
-            T asset = bundle.LoadAsset<T>(entry.asset);
-            if (asset == null)
+            AssetBundle bundle = _loadedBundles[ContentManifest.BundleName];
+            ContentManifest[] manifests = bundle.LoadAllAssets<ContentManifest>();
+            if (manifests == null || manifests.Length == 0)
             {
-                // 不同 Unity 版本对 TextAsset 的 asset 名处理可能不同（带不带 .bytes）。
-                // catalog 记的是编辑器里的名字；这里再按类型兜底一次，并打印真实 asset 名。
-                string[] allAssetNames = bundle.GetAllAssetNames();
-                foreach (string assetPath in allAssetNames)
-                {
-                    UnityEngine.Object candidate = bundle.LoadAsset(assetPath);
-                    if (candidate is T typed)
-                    {
-                        asset = typed;
-                        Debug.LogWarning($"[AB] 精确 key '{entry.asset}' 未命中，按类型兜底为 '{assetPath}'");
-                        break;
-                    }
-                }
-
-                if (asset == null)
-                {
-                    StringBuilder names = new StringBuilder();
-                    foreach (string name in allAssetNames)
-                    {
-                        names.Append(name).Append(" | ");
-                    }
-
-                    onError?.Invoke($"在 bundle {entry.bundle} 中找不到 {typeof(T).Name} '{entry.asset}'。" +
-                                    $"包含的资源: {names}");
-                    yield break;
-                }
+                onError?.Invoke($"bundle {ContentManifest.BundleName} 里没有 ContentManifest。");
+                yield break;
             }
 
-            Debug.Log($"[AB] 已加载 {key} <- {entry.bundle}/{entry.asset}");
-            onLoaded?.Invoke(asset);
+            Debug.Log($"[AB] 已加载 ContentManifest <- {ContentManifest.BundleName}");
+            onLoaded?.Invoke(manifests[0]);
         }
 
         private IEnumerator EnsureBundleLoaded(string bundleName, Action<string> onError)
@@ -500,7 +437,7 @@ namespace Baseline.Core
 
         private static bool ValidateCatalogEntries(ContentCatalog catalog, string label)
         {
-            if (catalog?.bundles == null || catalog.assets == null)
+            if (catalog?.bundles == null)
             {
                 return false;
             }

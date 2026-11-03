@@ -16,7 +16,9 @@
             </ui:VisualElement>
             <ui:Label name="update-status" text="检查更新…" class="update-status" />
             <ui:ProgressBar name="update-progress" title="下载热更" class="update-progress" style="display: none;" />
-            <ui:Label text="演示：不校验格式；密码仅在本机保存摘要，不上传。" class="note" />
+            <ui:Label name="server-status" text="探测服务器…" class="server-status" />
+            <ui:Button name="offline-button" text="离线开局（不联网）" class="offline-button" />
+            <ui:Label text="演示：账号与存档都在服务端 db.json；服务器不可达时可离线开局。" class="note" />
         </ui:VisualElement>
     </ui:VisualElement>
 

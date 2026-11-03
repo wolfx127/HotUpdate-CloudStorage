@@ -105,8 +105,31 @@ namespace Baseline.Core
                 }
             }
 
+            // 打包后不重新发版也能换服务器：Game.exe -server http://10.0.0.5:8080
+            string commandLineServer = ReadCommandLineServer();
+            if (!string.IsNullOrWhiteSpace(commandLineServer))
+            {
+                config.cloudBaseUrl = commandLineServer.Trim();
+                config.contentBaseUrl = config.cloudBaseUrl + "/ServerData/AB";
+                Debug.Log("[Config] 使用命令行指定的服务器：" + config.cloudBaseUrl);
+            }
+
             config.Normalize();
             onDone?.Invoke(config);
+        }
+
+        private static string ReadCommandLineServer()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], "-server", StringComparison.OrdinalIgnoreCase))
+                {
+                    return args[i + 1];
+                }
+            }
+
+            return null;
         }
     }
 }

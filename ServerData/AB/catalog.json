@@ -1,36 +1,15 @@
 {
-    "schemaVersion": 1,
-    "buildNumber": 5,
-    "contentVersion": "1.0.4",
-    "builtAtUtc": "2026-11-03T03:38:02.4285031Z",
+    "schemaVersion": 2,
+    "buildNumber": 16,
+    "contentVersion": "1.0.15",
+    "builtAtUtc": "2026-11-03T11:02:44.1187212Z",
     "bundles": [
         {
-            "name": "hero_sprite.bundle",
-            "file": "hero_sprite.bundle",
-            "sha256": "8625fbb4503e65996c228b64b5ba6d02729a91ea81d6883fbfb302c8db9ae46c",
-            "size": 12457,
+            "name": "content_boot.bundle",
+            "file": "content_boot.bundle",
+            "sha256": "1ab799b43a74c300ef615ded3727396c708890238b6cc372651011948b8cab4f",
+            "size": 201476,
             "dependencies": []
-        },
-        {
-            "name": "hotupdate_dll.bundle",
-            "file": "hotupdate_dll.bundle",
-            "sha256": "59d856d1d1be4b765dd80585c4a33fc18f147518ec252465f1503c2b296bd02a",
-            "size": 3863,
-            "dependencies": []
-        }
-    ],
-    "assets": [
-        {
-            "key": "hero_sprite",
-            "bundle": "hero_sprite.bundle",
-            "asset": "AndroidHero",
-            "type": "Texture2D"
-        },
-        {
-            "key": "hotupdate_dll",
-            "bundle": "hotupdate_dll.bundle",
-            "asset": "HotUpdate.dll",
-            "type": "TextAsset"
         }
     ]
 }

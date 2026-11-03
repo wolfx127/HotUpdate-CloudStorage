@@ -1,4 +1,4 @@
-using HotUpdateDemo;
+using Baseline.Core;
 using UnityEngine;
 
 namespace HotUpdateDemo.HotUpdate
@@ -21,8 +21,6 @@ namespace HotUpdateDemo.HotUpdate
         public string Notes => "V2 hotfix · +9 damage, enrage x2 below 35% HP";
 
         public int DamageBonus => 9;
-
-        public string HeroAssetKey => "hero_sprite";
 
         public int CalculateDamage(int baseDamage, int currentHp, int maxHp)
         {

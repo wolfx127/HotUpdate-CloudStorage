@@ -11,33 +11,40 @@ using UnityEngine;
 namespace Editor
 {
     /// <summary>
-    /// 按 AssetBundle 标签打包，并自动生成 catalog.json。
+    /// 构建热更内容：
+    ///   编译 HotUpdate.dll
+    ///   → 复制成 Assets 下的 .bytes
+    ///   → 自动绑定到 ContentManifest（DLL 由脚本绑，Hero 由 SO 引用决定）
+    ///   → 显式打一个 content_boot.bundle（SO + DLL + Hero）
+    ///   → buildNumber + 1，写 catalog.json
     ///
-    /// 约定（方案 A）：
-    ///   标签名去掉 .bundle 就是 catalog 里的 key。
-    ///   例如 hotupdate_dll.bundle -> key = hotupdate_dll
-    ///        hero_sprite.bundle    -> key = hero_sprite
-    ///
-    /// 脚本里不写任何资源路径、不写哈希、不写版本号。
+    /// 不使用 AssetBundle 标签：资源归属由 ContentManifest 的直接引用和这里的 assetNames 决定。
     /// </summary>
     public static class BuildAssetBundles
     {
         private const string OutputDir = "ServerData/AB";
         private const string BaselineDir = "Assets/StreamingAssets/AB";
         private const string CatalogName = "catalog.json";
-        private const string BundleSuffix = ".bundle";
+        private const string ManifestPath = "Assets/HotUpdate/ContentManifest.asset";
         private const string HotDllDir = "HybridCLRData/HotUpdateDlls/StandaloneWindows64";
         private const string HotDllName = "HotUpdate.dll";
         private const string BytesPath = "Assets/HotUpdate/Build/HotUpdate.dll.bytes";
         private const BuildTarget Target = BuildTarget.StandaloneWindows64;
 
-        [MenuItem("HotUpdate/1. Build AssetBundles", priority = 1)]
+        // 第一次建 SO 时的默认 Hero 候选，按顺序找第一个 Sprite。
+        private static readonly string[] FallbackHeroPaths =
+        {
+            "Assets/Art/Hero.png",
+            "Assets/Art/AndroidHero.png",
+        };
+
+        [MenuItem("HotUpdate/1. Build Content", priority = 1)]
         public static void BuildAll()
         {
             Build(false);
         }
 
-        [MenuItem("HotUpdate/2. Build + Sync Baseline", priority = 2)]
+        [MenuItem("HotUpdate/2. Build Content + Sync Baseline", priority = 2)]
         public static void BuildAndSyncBaseline()
         {
             Build(true);
@@ -46,32 +53,49 @@ namespace Editor
         private static void Build(bool syncBaseline)
         {
             // 先读旧 catalog 的版本号，再清目录（清完就没了）。
-            ContentCatalog old = ReadCatalog(Path.Combine(OutputDir, CatalogName));
-            int buildNumber = (old != null ? old.buildNumber : 0) + 1;
-
-            AssetBundleBuild[] builds = CollectBuilds();
-            if (builds.Length == 0)
-            {
-                Debug.LogError("[AB] 没有任何 AssetBundle 标签。先在 Inspector 最下面给资源打标签。");
-                return;
-            }
+            ContentCatalog old = ReadCatalog(Path.Combine(OutputDir, CatalogName))
+                                 ?? ReadCatalog(Path.Combine(BaselineDir, CatalogName));
+            int buildNumber = old != null ? old.buildNumber + 1 : 1;
 
             CompileHotUpdateDll();
-            CleanDirectory(OutputDir);
+            ContentManifest manifest = EnsureManifest();
 
-            AssetBundleManifest manifest = BuildPipeline.BuildAssetBundles(
-                OutputDir,
-                builds,
-                BuildAssetBundleOptions.ChunkBasedCompression | BuildAssetBundleOptions.ForceRebuildAssetBundle,
-                Target);
-
-            if (manifest == null)
+            string heroPath = AssetDatabase.GetAssetPath(manifest.heroSprite);
+            if (string.IsNullOrEmpty(heroPath))
             {
-                Debug.LogError("[AB] BuildAssetBundles 失败，看 Console 里的报错。");
-                return;
+                throw new Exception("[Content] ContentManifest.heroSprite 不是工程内的资源。");
             }
 
-            ContentCatalog catalog = MakeCatalog(manifest, buildNumber);
+            WarnIfLabeled(ManifestPath);
+            WarnIfLabeled(BytesPath);
+            WarnIfLabeled(heroPath);
+
+            var build = new AssetBundleBuild
+            {
+                assetBundleName = ContentManifest.BundleName,
+                assetNames = new[]
+                {
+                    ManifestPath,
+                    BytesPath,
+                    heroPath,
+                }
+            };
+
+            CleanDirectory(OutputDir);
+
+            AssetBundleManifest built = BuildPipeline.BuildAssetBundles(
+                OutputDir,
+                new[] { build },
+                BuildAssetBundleOptions.ChunkBasedCompression |
+                BuildAssetBundleOptions.ForceRebuildAssetBundle,
+                Target);
+
+            if (built == null)
+            {
+                throw new Exception("[Content] BuildAssetBundles 失败，看 Console 里的报错。");
+            }
+
+            ContentCatalog catalog = MakeCatalog(built, buildNumber);
             File.WriteAllText(
                 Path.Combine(OutputDir, CatalogName),
                 JsonUtility.ToJson(catalog, true) + "\n",
@@ -85,17 +109,17 @@ namespace Editor
             AssetDatabase.Refresh();
 
             Debug.Log(
-                $"[AB] 完成：build={catalog.buildNumber}, content={catalog.contentVersion}, " +
-                $"bundle={catalog.bundles.Length}, asset={catalog.assets.Length}, baseline={syncBaseline}");
+                $"[Content] 完成：build={catalog.buildNumber}, content={catalog.contentVersion}, " +
+                $"bundle={catalog.bundles.Length}, baseline={syncBaseline}");
         }
 
         /// <summary>
         /// 编译热更程序集，并把产物复制成 Assets 下的 .bytes。
-        /// 这样点一次菜单就能把“改代码”带进 AB，不用手动复制改名。
+        /// 固定路径覆盖，GUID 不变，SO 里的引用不会失效。
         /// </summary>
         private static void CompileHotUpdateDll()
         {
-            CompileDllCommand.CompileDll(Target, EditorUserBuildSettings.development);
+            CompileDllCommand.CompileDll(Target, false);
 
             string source = Path.Combine(HotDllDir, HotDllName);
             if (!File.Exists(source))
@@ -109,95 +133,93 @@ namespace Editor
             AssetDatabase.Refresh();
         }
 
-        private static AssetBundleBuild[] CollectBuilds()
+        /// <summary>
+        /// 取（或创建）ContentManifest，并把 DLL 自动绑进去；
+        /// heroSprite 为空时按约定路径自动找一张 Sprite，找不到就报错。
+        /// </summary>
+        private static ContentManifest EnsureManifest()
         {
-            var list = new List<AssetBundleBuild>();
-
-            foreach (string bundleName in AssetDatabase.GetAllAssetBundleNames())
+            string dir = Path.GetDirectoryName(ManifestPath);
+            if (!string.IsNullOrEmpty(dir))
             {
-                if (string.IsNullOrWhiteSpace(bundleName))
-                {
-                    continue;
-                }
-
-                string[] assets = AssetDatabase.GetAssetPathsFromAssetBundle(bundleName);
-                if (assets == null || assets.Length == 0)
-                {
-                    Debug.LogWarning($"[AB] 标签 {bundleName} 没有挂任何资源，已跳过。");
-                    continue;
-                }
-
-                list.Add(new AssetBundleBuild
-                {
-                    assetBundleName = bundleName,
-                    assetNames = assets
-                });
+                Directory.CreateDirectory(dir);
             }
 
-            list.Sort((a, b) => string.CompareOrdinal(a.assetBundleName, b.assetBundleName));
-            return list.ToArray();
+            ContentManifest manifest = AssetDatabase.LoadAssetAtPath<ContentManifest>(ManifestPath);
+            if (manifest == null)
+            {
+                manifest = ScriptableObject.CreateInstance<ContentManifest>();
+                AssetDatabase.CreateAsset(manifest, ManifestPath);
+                Debug.Log("[Content] 已创建 " + ManifestPath);
+            }
+
+            TextAsset dll = AssetDatabase.LoadAssetAtPath<TextAsset>(BytesPath);
+            if (dll == null)
+            {
+                throw new Exception("[Content] HotUpdate.dll.bytes 导入失败: " + BytesPath);
+            }
+
+            manifest.hotUpdateDll = dll;
+
+            if (manifest.heroSprite == null)
+            {
+                foreach (string path in FallbackHeroPaths)
+                {
+                    Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+                    if (sprite != null)
+                    {
+                        manifest.heroSprite = sprite;
+                        Debug.Log("[Content] 自动绑定 heroSprite: " + path);
+                        break;
+                    }
+                }
+            }
+
+            if (manifest.heroSprite == null)
+            {
+                throw new Exception("[Content] ContentManifest.heroSprite 为空。" +
+                                    "请打开 " + ManifestPath + " 把 Hero Sprite 拖进 heroSprite 字段。");
+            }
+
+            EditorUtility.SetDirty(manifest);
+            AssetDatabase.SaveAssets();
+            return manifest;
         }
 
-        private static ContentCatalog MakeCatalog(AssetBundleManifest manifest, int buildNumber)
+        private static ContentCatalog MakeCatalog(AssetBundleManifest built, int buildNumber)
         {
-            string[] bundleNames = manifest.GetAllAssetBundles();
-            Array.Sort(bundleNames, StringComparer.Ordinal);
-
-            var bundles = new List<BundleEntry>();
-            var assets = new List<AssetEntry>();
-
-            foreach (string bundleName in bundleNames)
+            string bundleName = ContentManifest.BundleName;
+            string filePath = Path.Combine(OutputDir, bundleName);
+            if (!File.Exists(filePath))
             {
-                string filePath = Path.Combine(OutputDir, bundleName);
-                var info = new FileInfo(filePath);
+                throw new Exception("[Content] 没有生成 " + filePath);
+            }
 
-                bundles.Add(new BundleEntry
+            var bundles = new List<BundleEntry>
+            {
+                new BundleEntry
                 {
                     name = bundleName,
                     file = bundleName,
                     sha256 = Sha256(filePath),
-                    size = info.Length,
-                    dependencies = manifest.GetAllDependencies(bundleName) ?? Array.Empty<string>()
-                });
-
-                string key = bundleName.EndsWith(BundleSuffix, StringComparison.OrdinalIgnoreCase)
-                    ? bundleName.Substring(0, bundleName.Length - BundleSuffix.Length)
-                    : bundleName;
-
-                string[] assetPaths = AssetDatabase.GetAssetPathsFromAssetBundle(bundleName);
-                if (assetPaths.Length > 1)
-                {
-                    Debug.LogWarning($"[AB] 包 {bundleName} 里有 {assetPaths.Length} 个资源，key 会重复，只有第一个能按 key 取到。");
+                    size = new FileInfo(filePath).Length,
+                    dependencies = built.GetAllDependencies(bundleName) ?? Array.Empty<string>()
                 }
-
-                foreach (string assetPath in assetPaths)
-                {
-                    Type type = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
-                    assets.Add(new AssetEntry
-                    {
-                        key = key,
-                        bundle = bundleName,
-                        asset = Path.GetFileNameWithoutExtension(assetPath),
-                        type = type != null ? type.Name : string.Empty
-                    });
-                }
-            }
+            };
 
             return new ContentCatalog
             {
-                schemaVersion = 1,
+                schemaVersion = 2,
                 buildNumber = buildNumber,
                 contentVersion = "1.0." + (buildNumber - 1),
                 builtAtUtc = DateTime.UtcNow.ToString("o"),
-                bundles = bundles.ToArray(),
-                assets = assets.ToArray()
+                bundles = bundles.ToArray()
             };
         }
 
         private static void SyncBaseline(ContentCatalog catalog)
         {
             CleanDirectory(BaselineDir);
-            Directory.CreateDirectory(BaselineDir);
 
             File.Copy(
                 Path.Combine(OutputDir, CatalogName),
@@ -213,6 +235,16 @@ namespace Editor
             }
 
             AssetDatabase.Refresh();
+        }
+
+        private static void WarnIfLabeled(string assetPath)
+        {
+            AssetImporter importer = AssetImporter.GetAtPath(assetPath);
+            if (importer != null && !string.IsNullOrEmpty(importer.assetBundleName))
+            {
+                Debug.LogWarning($"[Content] {assetPath} 还带着旧 AB 标签 " +
+                                 $"'{importer.assetBundleName}'；显式打包会忽略它，建议清空。");
+            }
         }
 
         private static void CleanDirectory(string dir)

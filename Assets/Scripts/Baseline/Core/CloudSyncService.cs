@@ -59,13 +59,15 @@ namespace Baseline.Core
         private string _token;
         private string _playerId;
 
-        public bool IsConfigured => !string.IsNullOrEmpty(_baseUrl) && !string.IsNullOrEmpty(_playerId);
+        public bool IsConfigured => PlayerSession.IsOnline &&
+                                    !string.IsNullOrEmpty(_baseUrl) &&
+                                    !string.IsNullOrEmpty(_playerId);
         public string PlayerId => _playerId;
         public string BaseUrl => _baseUrl;
 
         private void Awake()
         {
-            PlayerSession.EnsureInitialized();
+            // 账号在服务端，PlayerSession 只保存本次运行的内存状态。
             _playerId = PlayerSession.PlayerId;
         }
 

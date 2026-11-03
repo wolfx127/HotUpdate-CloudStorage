@@ -127,7 +127,8 @@ namespace Baseline.UI
 
             if (_accountLabel != null)
             {
-                _accountLabel.text = "用户名：" + PlayerSession.AccountName;
+                string suffix = PlayerSession.IsOnline ? string.Empty : "（离线）";
+                _accountLabel.text = "用户名：" + PlayerSession.AccountName + suffix;
             }
         }
 
